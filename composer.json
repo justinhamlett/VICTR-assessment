@@ -1,0 +1,24 @@
+{
+    "name": "justinhamlett/victr-assessment",
+    "description": "Retrieve the most stared public PHP project from Github",
+    "version": "1.0.0",
+    "type": "project",
+    "keywords": ["Github", "VICTR", "starred"],
+    "homepage": "https://github.com/",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Justin Hamlett",
+            "email": "justinhamlett@gmail.com",
+            "homepage": "http://justinhamlett.com",
+            "role": "developer"
+        }
+    ],
+    "require": {
+        "vlucas/phpdotenv": "2.3.0"
+    },
+    "minimum-stability": "stable",
+    "autoload": {
+        "psr-4": {"App\\": "src/"}
+    }
+}
