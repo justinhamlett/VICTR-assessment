@@ -16,10 +16,14 @@
  
     `https://help.github.com/articles/creating-an-access-token-for-command-line-use/`
 
-5. Update the `GITHUB_ENV` variable in the `.env` file with the generated Github personal access token.
+5. Update the `GITHUB_TOKEN` variable in the `.env` file with the generated Github personal access token.
 
-6. Create a MySQL database for the VICTR-assessment app and a corresponding user to access the created database. For example:
+6. Update the `GITHUB_USERAGENT` variable in the `.env` file with you Github username.
+
+7. Create a MySQL database for the VICTR-assessment app and a corresponding user to access the created database. For example:
 
     `create databse victr_github;`
     
-7. Update the `.env` file with the new database and user credentials.
+8. Update the `.env` file with the new database and user credentials.
+
+9. Update the `DB_REPO_TABLE` variable in the `.env` file that will be used to store Github repositories.

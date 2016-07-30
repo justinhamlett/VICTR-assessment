@@ -14,6 +14,8 @@ class Database
 	private $user;
 	private $pass;
 
+	private $table;
+
 	/**
 	 * Database constructor.
 	 *
@@ -28,9 +30,9 @@ class Database
 
 		try {
 			$this->conn = new PDO("mysql:host=$this->host;dbname=$this->database", $this->user, $this->pass);
-			$this->conn->setAttribute( PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING );
+			$this->conn->setAttribute( PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION );
 		} catch (\PDOException $e) {
-			return $e->getMessage();
+			return 'Error: ' . $e->getMessage();
 		}
 
 		return null;
@@ -63,6 +65,38 @@ class Database
 	}
 
 	/**
+	 * Sets table name that will be used to store Github repositories
+	 *
+	 * @param $table
+	 */
+	public function setTableName($table)
+	{
+		$this->table = $table;
+	}
+
+	/**
+	 * Check the information_scheme database to see if specified table exists
+	 *
+	 * @return string
+	 */
+	public function tableExists()
+	{
+		try {
+			$stmt = $this->conn->prepare('SELECT count(*) FROM information_schema.tables WHERE table_schema = :database AND table_name = :table LIMIT 1');
+			$stmt->execute(['database' => $this->database, 'table' => $this->table]);
+
+			$result = $stmt->fetchColumn();
+
+			return $result;
+
+		} catch(\PDOException $e) {
+			$msg = 'Error: ' . $e->getMessage();
+
+			return $msg;
+		}
+	}
+
+	/**
 	 * Create Github repository table
 	 *
 	 * @return string
@@ -71,7 +105,7 @@ class Database
 	{
 		// Define SQL to create Github repository table
 		$github_table = <<<EOSQL
-			CREATE TABLE repos(
+			CREATE TABLE {$this->table}(
 				repo_id int(11) NOT NULL,
 				name varchar(255) NOT NULL,
 				url varchar(255) NOT NULL,
@@ -83,16 +117,90 @@ class Database
 			) ENGINE=InnoDB
 EOSQL;
 
-		// Execute SQL to create table
-		$table = $this->conn->exec($github_table);
+		try {
+			// Execute SQL to create table
+			$table = $this->conn->exec($github_table);
 
-		// Check if table was created successfully
-		if ($table !== FALSE) {
-			$msg = "Tables are created successfully.";
-		} else {
-			$msg = "Error creating the Github repository table.";
+			$msg = $this->table . ' was created successfully.';
+		} catch(\PDOException $e) {
+			$msg = 'Error: ' . $e->getMessage();
 		}
 
 		return $msg;
+	}
+
+	/**
+	 * Checks if repository exists in the table
+	 *
+	 * @param $repo
+	 * @return bool|string
+	 */
+	public function repoExists($repo)
+	{
+		try {
+			$stmt = $this->conn->prepare("SELECT count(*) FROM {$this->table} WHERE repo_id = :repo_id");
+			$stmt->execute(['repo_id' => $repo['repo_id']]);
+
+			$result = $stmt->fetchColumn();
+
+			if ($result == 0) {
+				return FALSE;
+			} else {
+				return TRUE;
+			}
+
+		} catch(\PDOException $e) {
+			$msg = 'Error: ' . $e->getMessage();
+		}
+
+		return $msg;
+	}
+
+	/**
+	 * Inserts a new repository into the table
+	 *
+	 * @param array $repo
+	 */
+	public function insertRepo($repo = array())
+	{
+		try {
+			$stmt = $this->conn->prepare("INSERT INTO {$this->table} VALUES(:repo_id, :name, :url, :created_date, :last_push_date, :description, :stars)");
+			$stmt->execute([
+				'repo_id' => $repo['repo_id'],
+				'name' => $repo['name'],
+				'url' => $repo['url'],
+				'created_date' => $repo['created_date'],
+				'last_push_date' => $repo['last_push_date'],
+				'description' => $repo['description'],
+				'stars' => $repo['stars']
+			]);
+
+		} catch(\PDOException $e) {
+			$msg = 'Error: ' . $e->getMessage();
+		}
+	}
+
+	/**
+	 * Updates repository in the table with new data
+	 *
+	 * @param array $repo
+	 */
+	public function updateRepo($repo = array())
+	{
+		try {
+			$stmt = $this->conn->prepare("UPDATE {$this->table} SET name = :name, url = :url, created_date = :created_date, last_push_date = :last_push_date, description = :description, stars = :stars WHERE repo_id = :repo_id");
+			$stmt->execute([
+				'repo_id' => $repo['repo_id'],
+				'name' => $repo['name'],
+				'url' => $repo['url'],
+				'created_date' => $repo['created_date'],
+				'last_push_date' => $repo['last_push_date'],
+				'description' => $repo['description'],
+				'stars' => $repo['stars']
+			]);
+
+		} catch(\PDOException $e) {
+			$msg = 'Error: ' . $e->getMessage();
+		}
 	}
 }
