@@ -1,0 +1,24 @@
+{
+    "name": "VICTR-assessment",
+    "description": "Retrieve the most starred public PHP projects using the Github API and then store the repositories in a MySQL database.",
+    "main": "index.js",
+    "authors": [
+        "Justin Hamlett <justinhamlett@gmail.com>"
+    ],
+    "license": "MIT",
+    "homepage": "https://victr.vanderbilt.edu/pub/index.html",
+    "private": true,
+    "ignore": [
+        "**/.*",
+        "node_modules",
+        "bower_components",
+        "src/components",
+        "test",
+        "tests"
+    ],
+    "dependencies": {
+        "bootstrap": "^4.0",
+        "jquery": "^2.2.3",
+        "tether": "^1.3.2"
+    }
+}
