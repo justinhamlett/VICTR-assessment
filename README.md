@@ -27,3 +27,5 @@
 8. Update the `.env` file with the new database and user credentials.
 
 9. Update the `DB_REPO_TABLE` variable in the `.env` file that will be used to store Github repositories.
+
+NOTE: Frontend part is not done. For the backend example to run. Run `php main.php`
