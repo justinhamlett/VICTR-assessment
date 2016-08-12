@@ -2,12 +2,10 @@
 
 namespace App;
 
-class Github
+class Github extends Config
 {
 	private $apiUrl = "https://api.github.com/search/repositories?q=language:php&sort=stars&order=desc&per_page=100&page=";
-	private $apiHeader = [];
 	private $reposPerPage;
-	private $githubUserAgent;
 	private $totalRepos;
 	private $totalPages;
 	private $maxResultsCnt;
@@ -18,20 +16,32 @@ class Github
 	
 	public $page;
 
+	// GitHub config
+	protected $githubArray = [
+		'token' 	=> 'GITHUB_TOKEN',
+		'userAgent' => 'GITHUB_USERAGENT'
+	];
+
 	/**
 	 * Github API constructor.
 	 *
-	 * @param $githubUserAgent
-	 * @param $userToken
 	 */
-	public function __construct($githubUserAgent, $userToken)
+	public function __construct()
 	{
-		$this->githubUserAgent = $githubUserAgent;
-		$this->apiHeader[] = 'Authorization: token ' . $userToken;
+		parent::__construct($this->githubArray);
+
 		$this->reposPerPage = 100;
 		$this->page	= 1;
 		$this->maxResultsCnt = 1000;
 		$this->repoCnt = 0;
+
+		$this->setTotalRepoCount();
+
+	}
+
+	public function getConfig()
+	{
+		return $this->config;
 	}
 
 	/**
@@ -45,8 +55,8 @@ class Github
 		$curl = curl_init($url);
 
 		curl_setopt($curl, CURLOPT_RETURNTRANSFER, TRUE);
-		curl_setopt($curl, CURLOPT_USERAGENT, $this->githubUserAgent);
-		curl_setopt($curl, CURLOPT_HTTPHEADER, $this->apiHeader);
+		curl_setopt($curl, CURLOPT_USERAGENT, $this->config->userAgent);
+		curl_setopt($curl, CURLOPT_HTTPHEADER, ['Authorization: token ' . $this->config->token]);
 
 		$curlResponse = curl_exec($curl);
 
@@ -66,7 +76,7 @@ class Github
 	/**
 	 * Preform a Curl request to calculate the total number of repositories returned from Github API
 	 */
-	public function setTotalRepoCount()
+	private function setTotalRepoCount()
 	{
 		$results = $this->curlRequest($this->apiUrl . $this->page);
 
@@ -92,11 +102,45 @@ class Github
 	 */
 	public function getRepoPage()
 	{
-		if (($this->page <= $this->totalPages) && ($this->page <= ($this->maxResultsCnt/$this->reposPerPage))) {
-			return $this->curlRequest($this->apiUrl . $this->page);
+		while (($this->page <= $this->totalPages) && ($this->page <= ($this->maxResultsCnt/$this->reposPerPage))) {
+			$this->repoArray = $this->curlRequest($this->apiUrl . $this->page);
+			$this->formatRepoArray();
+			$this->nextPage();
 		}
 
 		return FALSE;
+	}
+
+	/**
+	 *
+	 */
+	private function formatRepoArray()
+	{
+		foreach ($this->repoArray->items as $repo)
+		{
+			$formatted = $this->buildRepoArray($repo);
+			$this->storeRepo($formatted);
+		}
+	}
+
+	/**
+	 *
+	 *
+	 * @param $repo
+	 */
+	private function storeRepo($repo)
+	{
+		$instance = Database::getInstance();
+
+		// Check if repository exists in database already
+		if ($instance->repoExists($repo)) {
+			// Update repository in table with new data
+			$instance->updateRepo($repo);
+		} else {
+			// Inserts new repository into the table
+			$instance->insertRepo($repo);
+		}
+
 	}
 
 	/**

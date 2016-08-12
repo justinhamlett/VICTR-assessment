@@ -4,32 +4,33 @@ namespace App;
 
 use \PDO;
 
-class Database
+class Database extends Config
 {
 	private static $instance = null;
 	private $conn;
 
-	private $host;
-	private $database;
-	private $user;
-	private $pass;
+	private $errors = [];
 
-	private $table;
+	// Database config
+	protected $dbArray = [
+		'host' 		=> 'DB_HOST',
+		'database' 	=> 'DB_DATABASE',
+		'user' 		=> 'DB_USER',
+		'pass' 		=> 'DB_PASS',
+		'table' 	=> 'DB_REPO_TABLE'
+	];
 
 	/**
 	 * Database constructor.
 	 *
-	 * @param array $db_config
 	 */
-	private function __construct($db_config = array())
+	protected function __construct()
 	{
-		$this->host = $db_config['host'];
-		$this->database = $db_config['database'];
-		$this->user = $db_config['user'];
-		$this->pass = $db_config['pass'];
+		parent::__construct($this->dbArray);
 
 		try {
-			$this->conn = new PDO("mysql:host=$this->host;dbname=$this->database", $this->user, $this->pass);
+			$this->conn = new PDO("mysql:host={$this->config->host};dbname={$this->config->database}", $this->config->user, $this->config->pass);
+
 			$this->conn->setAttribute( PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION );
 		} catch (\PDOException $e) {
 			return 'Error: ' . $e->getMessage();
@@ -41,71 +42,78 @@ class Database
 	/**
 	 * Returns database instance
 	 *
-	 * @param array $db_config
 	 * @return Database|null
 	 */
-	public static function getInstance($db_config = array())
+	public static function getInstance()
 	{
 		// check if instance already exists
 		if (self::$instance == null) {
-			self::$instance = new Database($db_config);
+			self::$instance = new Database();
 		}
 
 		return self::$instance;
 	}
 
-	/**
-	 * Returns database connection
-	 *
-	 * @return PDO
-	 */
-	public function getConnection()
+	public function getConfig()
 	{
-		return $this->conn;
+		return $this->config;
 	}
 
 	/**
-	 * Sets table name that will be used to store Github repositories
+	 * Executes prepared SQL statements and catches errors
 	 *
-	 * @param $table
+	 * @param $sql
+	 * @param array $params
+	 * @param bool $return
+	 * @return array
 	 */
-	public function setTableName($table)
+	private function executeSQL($sql, $params = [], $return = TRUE)
 	{
-		$this->table = $table;
+		try {
+			$stmt = $this->conn->prepare($sql);
+			$stmt->execute($params);
+
+			if ($return == TRUE) {
+				$result = [];
+
+				while ($rows = $stmt->fetchObject()) {
+					$result[] = $rows;
+				}
+
+				return $result;
+			}
+
+		} catch (\PDOException $e) {
+			$this->errors[] = 'Error: ' . $e->getMessage();
+
+			return $this->errors;
+		}
 	}
 
 	/**
 	 * Check the information_scheme database to see if specified table exists
 	 *
-	 * @return string
+	 * @return array
 	 */
 	public function tableExists()
 	{
-		try {
-			$stmt = $this->conn->prepare('SELECT count(*) FROM information_schema.tables WHERE table_schema = :database AND table_name = :table LIMIT 1');
-			$stmt->execute(['database' => $this->database, 'table' => $this->table]);
+		$sql = "SELECT count(*) as cnt FROM information_schema.tables WHERE table_schema = :database AND table_name = :table LIMIT 1";
+		$parms = ['database' => $this->config->database, 'table' => $this->config->table];
 
-			$result = $stmt->fetchColumn();
-
-			return $result;
-
-		} catch(\PDOException $e) {
-			$msg = 'Error: ' . $e->getMessage();
-
-			return $msg;
-		}
+		return $this->executeSQL($sql, $parms);
 	}
 
 	/**
 	 * Create Github repository table
-	 *
-	 * @return string
 	 */
 	public function createTable()
 	{
-		// Define SQL to create Github repository table
-		$github_table = <<<EOSQL
-			CREATE TABLE {$this->table}(
+
+		$exists = $this->tableExists();
+
+		if ($exists[0]->cnt == 0) {
+			$sql = <<<EOSQL
+			CREATE TABLE {$this->config->table}(
 				repo_id int(11) NOT NULL,
 				name varchar(255) NOT NULL,
 				url varchar(255) NOT NULL,
@@ -117,90 +125,80 @@ class Database
 			) ENGINE=InnoDB
 EOSQL;
 
-		try {
-			// Execute SQL to create table
-			$table = $this->conn->exec($github_table);
-
-			$msg = $this->table . ' was created successfully.';
-		} catch(\PDOException $e) {
-			$msg = 'Error: ' . $e->getMessage();
+			$this->executeSQL($sql, [], FALSE);
 		}
-
-		return $msg;
 	}
 
 	/**
 	 * Checks if repository exists in the table
 	 *
 	 * @param $repo
-	 * @return bool|string
+	 * @return array
 	 */
 	public function repoExists($repo)
 	{
-		try {
-			$stmt = $this->conn->prepare("SELECT count(*) FROM {$this->table} WHERE repo_id = :repo_id");
-			$stmt->execute(['repo_id' => $repo['repo_id']]);
+		$sql = "SELECT count(*) as cnt FROM {$this->config->table} WHERE repo_id = :repo_id";
+		$parms = ['repo_id' => $repo['repo_id']];
 
-			$result = $stmt->fetchColumn();
-
-			if ($result == 0) {
-				return FALSE;
-			} else {
-				return TRUE;
-			}
-
-		} catch(\PDOException $e) {
-			$msg = 'Error: ' . $e->getMessage();
-		}
-
-		return $msg;
+		return $this->executeSQL($sql, $parms);
 	}
 
 	/**
 	 * Inserts a new repository into the table
 	 *
 	 * @param array $repo
+	 * @return array
 	 */
-	public function insertRepo($repo = array())
+	public function insertRepo($repo = [])
 	{
-		try {
-			$stmt = $this->conn->prepare("INSERT INTO {$this->table} VALUES(:repo_id, :name, :url, :created_date, :last_push_date, :description, :stars)");
-			$stmt->execute([
-				'repo_id' => $repo['repo_id'],
-				'name' => $repo['name'],
-				'url' => $repo['url'],
-				'created_date' => $repo['created_date'],
-				'last_push_date' => $repo['last_push_date'],
-				'description' => $repo['description'],
-				'stars' => $repo['stars']
-			]);
+		$sql = "INSERT INTO {$this->config->table} VALUES(:repo_id, :name, :url, :created_date, :last_push_date, :description, :stars)";
+		$parms = [
+			'repo_id' => $repo['repo_id'],
+			'name' => $repo['name'],
+			'url' => $repo['url'],
+			'created_date' => $repo['created_date'],
+			'last_push_date' => $repo['last_push_date'],
+			'description' => $repo['description'],
+			'stars' => $repo['stars']
+		];
 
-		} catch(\PDOException $e) {
-			$msg = 'Error: ' . $e->getMessage();
-		}
+		return $this->executeSQL($sql, $parms, FALSE);
 	}
 
 	/**
 	 * Updates repository in the table with new data
 	 *
 	 * @param array $repo
+	 * @return array
 	 */
-	public function updateRepo($repo = array())
+	public function updateRepo($repo = [])
 	{
-		try {
-			$stmt = $this->conn->prepare("UPDATE {$this->table} SET name = :name, url = :url, created_date = :created_date, last_push_date = :last_push_date, description = :description, stars = :stars WHERE repo_id = :repo_id");
-			$stmt->execute([
-				'repo_id' => $repo['repo_id'],
-				'name' => $repo['name'],
-				'url' => $repo['url'],
-				'created_date' => $repo['created_date'],
-				'last_push_date' => $repo['last_push_date'],
-				'description' => $repo['description'],
-				'stars' => $repo['stars']
-			]);
+		$sql = "UPDATE {$this->config->table} SET name = :name, url = :url, created_date = :created_date, last_push_date = :last_push_date, description = :description, stars = :stars WHERE repo_id = :repo_id";
+		$parms = [
+			'repo_id' => $repo['repo_id'],
+			'name' => $repo['name'],
+			'url' => $repo['url'],
+			'created_date' => $repo['created_date'],
+			'last_push_date' => $repo['last_push_date'],
+			'description' => $repo['description'],
+			'stars' => $repo['stars']
+		];
 
-		} catch(\PDOException $e) {
-			$msg = 'Error: ' . $e->getMessage();
-		}
+		return $this->executeSQL($sql, $parms, FALSE);
+	}
+
+	/**
+	 * Retrieves repository records from the database
+	 *
+	 * @param int $count
+	 * @return array
+	 */
+	public function getRepos($count = 100)
+	{
+		$sql = "SELECT * FROM {$this->config->table} LIMIT {$count}";
+
+		$results = $this->executeSQL($sql);
+
+		return $results;
 	}
 }

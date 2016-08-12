@@ -1,0 +1,16 @@
+@charset "UTF-8";
+
+// SASS base includes
+@import "_base/_config",
+        "_base/presets";
+
+// SASS components includes
+@import "_components/_header",
+        "_components/jumbotron",
+        "_components/_sidebar",
+        "_components/_table";
+
+// SASS layouts includes
+@import "_layouts/_l-base",
+        "_layouts/_l-grid";
+
