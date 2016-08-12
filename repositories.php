@@ -1,5 +1,3 @@
-<?php // include("main.php"); ?>
-
 <?php
 	require 'main.php';
 ?>
@@ -38,17 +36,6 @@
 
 <div class="container-fluid">
 	<div class="row">
-
-		<!-- <div class="col-sm-3 col-md-2 sidebar">
-			<ul class="nav nav-sidebar">
-				<li class="active"><a href="#">Overview <span class="sr-only">(current)</span></a></li>
-				<li><a href="#">Reports</a></li>
-				<li><a href="#">Analytics</a></li>
-				<li><a href="#">Export</a></li>
-			</ul>
-		</div> -->
-
-	<!--	<div class="col-sm-9 offset-sm-3 col-md-10 offset-md-2 main"> -->
 		<div class="col-sm-12 offset-sm-12 col-md-12 offset-md-12 main">
 			<h1>Dashboard</h1>
 			<h2>Most Starred PHP Repositories</h2>

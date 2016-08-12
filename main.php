@@ -7,11 +7,6 @@ define('DOCROOT', __DIR__);
 require __DIR__ . '/vendor/autoload.php';
 
 
-
-
-
-
-
 // Sets OAuth configuration to connect to Github API
 $githubRepos = new App\Github();
 

@@ -5,6 +5,7 @@
 	// Include autoload PHP file for Composer packages
 	require __DIR__ . '/vendor/autoload.php';
 
+	// Initiate Database class and create table defined in config
 	$instance = \App\Database::getInstance();
 	$instance->createTable();
 	$db = $instance->getConfig();
