@@ -64,7 +64,7 @@
 	* `CREATE DATABASE victr_github;`
 	* `CREATE USER 'victr'@'localhost' IDENTIFIED BY 'password';`
 	* `GRANT ALL PRIVILEGES ON *.* TO 'victr'@'localhost';`
-	* `GRANT ALL PRIVILEGES ON 'victr_github'.* TO 'victr'@'localhost';`
+	* `GRANT ALL PRIVILEGES ON victr_github.* TO 'victr'@'localhost';`
 	* `FLUSH PRIVILEGES;`
     
 9. Update the `.env` file with the new database and user credentials.

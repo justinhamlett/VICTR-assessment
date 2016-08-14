@@ -3,8 +3,8 @@
     "description": "Retrieve the most stared public PHP project from Github",
     "version": "1.0.0",
     "type": "project",
-    "keywords": ["Github", "VICTR", "starred"],
-    "homepage": "https://github.com/",
+    "keywords": ["Github", "VICTR", "starred", "PHP"],
+    "homepage": "https://victr.vanderbilt.edu/pub/index.html",
     "license": "MIT",
     "authors": [
         {

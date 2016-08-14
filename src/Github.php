@@ -2,53 +2,57 @@
 
 namespace App;
 
+/**
+ * Class Github
+ *
+ * Class connects to Github's API through Curl requests and manages and structures data
+ * needed for requests and data returned from API. Also uses /App/Database object to store
+ * repositories returned from Github's API.
+ *
+ * @package App
+ */
 class Github extends Config
 {
+	/**
+	 * Github's API URL with defined PHP request variables
+	 *
+	 * @var string
+	 */
 	private $apiUrl = "https://api.github.com/search/repositories?q=language:php&sort=stars&order=desc&per_page=100&page=";
-	private $reposPerPage;
-	private $totalRepos;
-	private $totalPages;
-	private $maxResultsCnt;
-	private $errorMessage = NULL;
-	private $repoCnt;
+	private $reposPerPage = 100;
+	private $maxResultsCnt = 1000;
 
 	private $repoArray = [];
 	
-	public $page;
+	public $page = 1;
 
-	// GitHub config
+	/**
+	 * Config '.env' file array.
+	 *
+	 * $envVars[$key => $value]
+	 * $key - Config object variable
+	 * $value - '.env' file variable
+	 *
+	 * @var array
+	 */
 	protected $githubArray = [
 		'token' 	=> 'GITHUB_TOKEN',
 		'userAgent' => 'GITHUB_USERAGENT'
 	];
 
 	/**
-	 * Github API constructor.
-	 *
+	 * Github constructor calls parent calls to set Github config values
 	 */
 	public function __construct()
 	{
 		parent::__construct($this->githubArray);
-
-		$this->reposPerPage = 100;
-		$this->page	= 1;
-		$this->maxResultsCnt = 1000;
-		$this->repoCnt = 0;
-
-		$this->setTotalRepoCount();
-
-	}
-
-	public function getConfig()
-	{
-		return $this->config;
 	}
 
 	/**
 	 * Executes a Curl request to retrieve repository data
 	 *
 	 * @param $url
-	 * @return bool|mixed
+	 * @return mixed
 	 */
 	private function curlRequest($url)
 	{
@@ -61,11 +65,9 @@ class Github extends Config
 		$curlResponse = curl_exec($curl);
 
 		if ($curlResponse === false) {
-			$this->errorMessage = curl_getinfo($curl);
+			print_r(curl_getinfo($curl));
 
 			curl_close($curl);
-
-			return FALSE;
 		}
 
 		curl_close($curl);
@@ -74,35 +76,43 @@ class Github extends Config
 	}
 
 	/**
-	 * Preform a Curl request to calculate the total number of repositories returned from Github API
+	 * Calculate the total number of PHP starred repositories returned from Github API
+	 *
+	 * @return mixed
 	 */
-	private function setTotalRepoCount()
+	private function getTotalRepoCount()
 	{
 		$results = $this->curlRequest($this->apiUrl . $this->page);
 
-		if ($results !== FALSE) {
-			$this->totalRepos = $results->total_count;
-			
-			$this->setTotalPageCount();
-		}
+		return $results->total_count;
 	}
 
 	/**
-	 * Calculates how many pages of repositories that the Github API returns
+	 * Calculates how many pages of PHP starred repositories that the Github API returns
+	 *
+	 * @return float
 	 */
 	private function setTotalPageCount()
 	{
-		$this->totalPages = ceil($this->totalRepos/$this->reposPerPage);
+		// Retrieve total amount of PHP starred repositories
+		$totalRepos = $this->getTotalRepoCount();
+
+		// Calculate and return total pages of PHP starred repositories
+		return ceil($totalRepos/$this->reposPerPage);
 	}
 
 	/**
-	 * Retrieve a page of repositories from the Github API
+	 * Retrieve a page of PHP starred repositories from the Github API
 	 *
 	 * @return bool|mixed
 	 */
 	public function getRepoPage()
 	{
-		while (($this->page <= $this->totalPages) && ($this->page <= ($this->maxResultsCnt/$this->reposPerPage))) {
+		// Get total repositories page count
+		$totalPages = $this->setTotalPageCount();
+
+		// Checks if downloading is past last page, if not download page of PHP starred repositories
+		while (($this->page <= $totalPages) && ($this->page <= ($this->maxResultsCnt/$this->reposPerPage))) {
 			$this->repoArray = $this->curlRequest($this->apiUrl . $this->page);
 			$this->formatRepoArray();
 			$this->nextPage();
@@ -112,7 +122,7 @@ class Github extends Config
 	}
 
 	/**
-	 *
+	 * Loops through downloaded page of repositories and formats them to be saved to database
 	 */
 	private function formatRepoArray()
 	{
@@ -124,7 +134,7 @@ class Github extends Config
 	}
 
 	/**
-	 *
+	 * Stores repository in database
 	 *
 	 * @param $repo
 	 */

@@ -1,7 +1,7 @@
 {
     "name": "victr-assessment",
     "version": "1.0.0",
-    "description": "Retrieve the most stared public PHP project from Github",
+    "description": "Retrieve the most stared public PHP projects from Github",
     "main": "index.js",
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1"

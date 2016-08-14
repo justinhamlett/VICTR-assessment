@@ -4,15 +4,48 @@ namespace App;
 
 use \PDO;
 
+/**
+ * Class Database
+ * 
+ * Singleton class that is the database layer between the Github API and storing and
+ * retrieving information. This class uses the PDO class to create the Github table
+ * and store and retrieve Github data.
+ * 
+ * @package App
+ */
 class Database extends Config
 {
+	/**
+	 * Static Database class instance.
+	 * 
+	 * @var null
+	 */
 	private static $instance = null;
+
+	/**
+	 * Database PDO connection.
+	 * 
+	 * @var PDO
+	 */
 	private $conn;
 
+	/**
+	 * Database PDO errors array.
+	 * 
+	 * @var array
+	 */
 	private $errors = [];
 
-	// Database config
-	protected $dbArray = [
+	/**
+	 * Config '.env' file array.
+	 *
+	 * $envVars[$key => $value]
+	 * $key - Config object variable
+	 * $value - '.env' file variable
+	 * 
+	 * @var array
+	 */
+	protected $envVars = [
 		'host' 		=> 'DB_HOST',
 		'database' 	=> 'DB_DATABASE',
 		'user' 		=> 'DB_USER',
@@ -21,26 +54,29 @@ class Database extends Config
 	];
 
 	/**
-	 * Database constructor.
-	 *
+	 * Database constructor calls Config class constructor to define database connection
+	 * variables and creates PDO connection.
 	 */
 	protected function __construct()
 	{
-		parent::__construct($this->dbArray);
+		// Creates Database class config object values
+		parent::__construct($this->envVars);
 
+		// Create PDO connection or throw a PDO error
 		try {
 			$this->conn = new PDO("mysql:host={$this->config->host};dbname={$this->config->database}", $this->config->user, $this->config->pass);
 
 			$this->conn->setAttribute( PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION );
 		} catch (\PDOException $e) {
-			return 'Error: ' . $e->getMessage();
-		}
+			$this->errors[] = 'Error: ' . $e->getMessage();
 
-		return null;
+			// Display connection errors
+			$this->displayErrors();
+		}
 	}
 
 	/**
-	 * Returns database instance
+	 * Creates and/or returns database instance.
 	 *
 	 * @return Database|null
 	 */
@@ -54,11 +90,6 @@ class Database extends Config
 		return self::$instance;
 	}
 
-	public function getConfig()
-	{
-		return $this->config;
-	}
-
 	/**
 	 * Executes prepared SQL statements and catches errors
 	 *
@@ -69,36 +100,54 @@ class Database extends Config
 	 */
 	private function executeSQL($sql, $params = [], $return = TRUE)
 	{
+		// PDO objects array
+		$result = [];
+
 		try {
+			// Prepares connection with the SQL parameter
 			$stmt = $this->conn->prepare($sql);
+			// Execute prepared connection with SQL parameter values
 			$stmt->execute($params);
 
+			// If connection returns data, iterate and store in array
 			if ($return == TRUE) {
-				$result = [];
-
+				// Iterate and store SQL result objects in array
 				while ($rows = $stmt->fetchObject()) {
 					$result[] = $rows;
 				}
-
-				return $result;
 			}
-
 		} catch (\PDOException $e) {
 			$this->errors[] = 'Error: ' . $e->getMessage();
 
-			return $this->errors;
+			// Call method to display errors
+			$this->displayErrors();
 		}
+
+		// Returned PDO objects array
+		return $result;
 	}
 
 	/**
-	 * Check the information_scheme database to see if specified table exists
+	 * Prints SQL transaction errors
+	 */
+	public function displayErrors()
+	{
+		print_r($this->errors);
+	}
+
+	/**
+	 * Check the 'information_scheme' database to see if specified table exists
 	 *
 	 * @return array
 	 */
 	public function tableExists()
 	{
+		// Sets SELECT SQL statement to check if specified table exists
 		$sql = "SELECT count(*) as cnt FROM information_schema.tables WHERE table_schema = :database AND table_name = :table LIMIT 1";
-		$parms = ['database' => $this->config->database, 'table' => $this->config->table];
+		$parms = [
+			'database' => $this->config->database,
+			'table' => $this->config->table
+		];
 
 		return $this->executeSQL($sql, $parms);
 	}
@@ -108,10 +157,11 @@ class Database extends Config
 	 */
 	public function createTable()
 	{
-
+		// Checks if table exists before executing 'CREATE TABLE' SQL statement
 		$exists = $this->tableExists();
 
 		if ($exists[0]->cnt == 0) {
+			// Set CREATE SQL statement to create new table with specified name
 			$sql = <<<EOSQL
 			CREATE TABLE {$this->config->table}(
 				repo_id int(11) NOT NULL,
@@ -125,6 +175,7 @@ class Database extends Config
 			) ENGINE=InnoDB
 EOSQL;
 
+			// No results returned since third parameter set to FALSE
 			$this->executeSQL($sql, [], FALSE);
 		}
 	}
@@ -137,8 +188,11 @@ EOSQL;
 	 */
 	public function repoExists($repo)
 	{
+		// Sets SELECT SQL statement to check if repository exists
 		$sql = "SELECT count(*) as cnt FROM {$this->config->table} WHERE repo_id = :repo_id";
-		$parms = ['repo_id' => $repo['repo_id']];
+		$parms = [
+			'repo_id' => $repo['repo_id']
+		];
 
 		return $this->executeSQL($sql, $parms);
 	}
@@ -151,15 +205,16 @@ EOSQL;
 	 */
 	public function insertRepo($repo = [])
 	{
+		// Sets INSERT SQL statement with all repository values
 		$sql = "INSERT INTO {$this->config->table} VALUES(:repo_id, :name, :url, :created_date, :last_push_date, :description, :stars)";
 		$parms = [
-			'repo_id' => $repo['repo_id'],
-			'name' => $repo['name'],
-			'url' => $repo['url'],
-			'created_date' => $repo['created_date'],
-			'last_push_date' => $repo['last_push_date'],
-			'description' => $repo['description'],
-			'stars' => $repo['stars']
+			'repo_id' 			=> $repo['repo_id'],
+			'name' 				=> $repo['name'],
+			'url' 				=> $repo['url'],
+			'created_date' 		=> $repo['created_date'],
+			'last_push_date' 	=> $repo['last_push_date'],
+			'description' 		=> $repo['description'],
+			'stars' 			=> $repo['stars']
 		];
 
 		return $this->executeSQL($sql, $parms, FALSE);
@@ -173,15 +228,16 @@ EOSQL;
 	 */
 	public function updateRepo($repo = [])
 	{
+		// Sets UPDATE SQL statement with all repository values
 		$sql = "UPDATE {$this->config->table} SET name = :name, url = :url, created_date = :created_date, last_push_date = :last_push_date, description = :description, stars = :stars WHERE repo_id = :repo_id";
 		$parms = [
-			'repo_id' => $repo['repo_id'],
-			'name' => $repo['name'],
-			'url' => $repo['url'],
-			'created_date' => $repo['created_date'],
-			'last_push_date' => $repo['last_push_date'],
-			'description' => $repo['description'],
-			'stars' => $repo['stars']
+			'repo_id' 			=> $repo['repo_id'],
+			'name' 				=> $repo['name'],
+			'url' 				=> $repo['url'],
+			'created_date' 		=> $repo['created_date'],
+			'last_push_date' 	=> $repo['last_push_date'],
+			'description' 		=> $repo['description'],
+			'stars' 			=> $repo['stars']
 		];
 
 		return $this->executeSQL($sql, $parms, FALSE);
@@ -195,10 +251,9 @@ EOSQL;
 	 */
 	public function getRepos($count = 100)
 	{
+		// Set SELECT SQL statement to retrieve repository values from database
 		$sql = "SELECT * FROM {$this->config->table} LIMIT {$count}";
 
-		$results = $this->executeSQL($sql);
-
-		return $results;
+		return $this->executeSQL($sql);
 	}
 }
