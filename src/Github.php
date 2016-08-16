@@ -20,7 +20,6 @@ class Github extends Config
 	 */
 	private $apiUrl = "https://api.github.com/search/repositories?q=language:php&sort=stars&order=desc&per_page=100&page=";
 	private $reposPerPage = 100;
-	private $maxResultsCnt = 1000;
 
 	private $repoArray = [];
 	
@@ -80,7 +79,7 @@ class Github extends Config
 	 *
 	 * @return mixed
 	 */
-	private function getTotalRepoCount()
+	private function getTotalRepoCnt()
 	{
 		$results = $this->curlRequest($this->apiUrl . $this->page);
 
@@ -92,10 +91,10 @@ class Github extends Config
 	 *
 	 * @return float
 	 */
-	private function setTotalPageCount()
+	private function getTotalPageCnt()
 	{
 		// Retrieve total amount of PHP starred repositories
-		$totalRepos = $this->getTotalRepoCount();
+		$totalRepos = $this->getTotalRepoCnt();
 
 		// Calculate and return total pages of PHP starred repositories
 		return ceil($totalRepos/$this->reposPerPage);
@@ -108,49 +107,12 @@ class Github extends Config
 	 */
 	public function getRepoPage()
 	{
-		// Get total repositories page count
-		$totalPages = $this->setTotalPageCount();
 
-		// Checks if downloading is past last page, if not download page of PHP starred repositories
-		while (($this->page <= $totalPages) && ($this->page <= ($this->maxResultsCnt/$this->reposPerPage))) {
-			$this->repoArray = $this->curlRequest($this->apiUrl . $this->page);
-			$this->formatRepoArray();
-			$this->nextPage();
-		}
+		$repos = $this->curlRequest($this->apiUrl . $this->page);
 
-		return FALSE;
-	}
+		$this->nextPage();
 
-	/**
-	 * Loops through downloaded page of repositories and formats them to be saved to database
-	 */
-	private function formatRepoArray()
-	{
-		foreach ($this->repoArray->items as $repo)
-		{
-			$formatted = $this->buildRepoArray($repo);
-			$this->storeRepo($formatted);
-		}
-	}
-
-	/**
-	 * Stores repository in database
-	 *
-	 * @param $repo
-	 */
-	private function storeRepo($repo)
-	{
-		$instance = Database::getInstance();
-
-		// Check if repository exists in database already
-		if ($instance->repoExists($repo)) {
-			// Update repository in table with new data
-			$instance->updateRepo($repo);
-		} else {
-			// Inserts new repository into the table
-			$instance->insertRepo($repo);
-		}
-
+		return $repos;
 	}
 
 	/**

@@ -121,6 +121,8 @@ class Database extends Config
 
 			// Call method to display errors
 			$this->displayErrors();
+
+			var_dump($params);
 		}
 
 		// Returned PDO objects array
@@ -149,7 +151,9 @@ class Database extends Config
 			'table' => $this->config->table
 		];
 
-		return $this->executeSQL($sql, $parms);
+		$result = $this->executeSQL($sql, $parms);
+
+		return $result[0]->cnt;
 	}
 
 	/**
@@ -160,7 +164,7 @@ class Database extends Config
 		// Checks if table exists before executing 'CREATE TABLE' SQL statement
 		$exists = $this->tableExists();
 
-		if ($exists[0]->cnt == 0) {
+		if ($exists == 0) {
 			// Set CREATE SQL statement to create new table with specified name
 			$sql = <<<EOSQL
 			CREATE TABLE {$this->config->table}(
@@ -169,7 +173,7 @@ class Database extends Config
 				url varchar(255) NOT NULL,
 				created_date date NOT NULL,
 				last_push_date date NOT NULL,
-				description text NOT NULL,
+				description text,
 				stars int(11) NOT NULL,
 				PRIMARY KEY (repo_id)
 			) ENGINE=InnoDB
@@ -194,7 +198,9 @@ EOSQL;
 			'repo_id' => $repo['repo_id']
 		];
 
-		return $this->executeSQL($sql, $parms);
+		$result = $this->executeSQL($sql, $parms);
+
+		return $result[0]->cnt;
 	}
 
 	/**
@@ -213,7 +219,7 @@ EOSQL;
 			'url' 				=> $repo['url'],
 			'created_date' 		=> $repo['created_date'],
 			'last_push_date' 	=> $repo['last_push_date'],
-			'description' 		=> $repo['description'],
+			'description' 		=> preg_replace("/[^A-Za-z0-9 ]/", '', $repo['description']),
 			'stars' 			=> $repo['stars']
 		];
 
@@ -236,7 +242,7 @@ EOSQL;
 			'url' 				=> $repo['url'],
 			'created_date' 		=> $repo['created_date'],
 			'last_push_date' 	=> $repo['last_push_date'],
-			'description' 		=> $repo['description'],
+			'description' 		=> preg_replace("/[^A-Za-z0-9 ]/", '', $repo['description']),
 			'stars' 			=> $repo['stars']
 		];
 

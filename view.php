@@ -5,7 +5,29 @@
 	// Include autoload PHP file for Composer packages
 	require __DIR__ . '/vendor/autoload.php';
 
+	$github = new \App\Github();
 	$instance = \App\Database::getInstance();
+
+	for ($i = 1; $i <= 10; $i++) {
+
+		$repos = $github->getRepoPage();
+
+		foreach ($repos->items as $repo) {
+
+			$repoArray = $github->buildRepoArray($repo);
+
+			if ($instance->repoExists($repoArray)) {
+
+				$instance->updateRepo($repoArray);
+
+			} else {
+
+				$instance->insertRepo($repoArray);
+
+			}
+		}
+	}
+
 	$repos = $instance->getRepos();
 ?>
 
@@ -60,33 +82,23 @@
 	</div>
 </div>
 <div class="container">
-	<table class="table table-bordered repo-table">
-		<thead>
-			<tr>
-				<th>ID (repo_id)</th>
-				<th>Name (name)</th>
-				<th>URL (url)</th>
-				<th>Created Date (created_date)</th>
-				<th>Last Push Date (last_push_date)</th>
-				<th>Description (description)</th>
-				<th>Number of Stars (stars)</th>
-			</tr>
-		</thead>
-		<tbody>
-			<?php foreach($repos as $repo): ?>
-			<tr>
-				<td><?= $repo->repo_id ?></td>
-				<td><?= $repo->name ?></td>
-				<td><?= $repo->url ?></td>
-				<td><?= $repo->created_date ?></td>
-				<td><?= $repo->last_push_date ?></td>
-				<td><?= $repo->description ?></td>
-				<td><?= $repo->stars ?></td>
-			</tr>
-			<?php endforeach; ?>
-		</tbody>
-	</table>
-
+	<?php foreach($repos as $repo): ?>
+		<div class="card">
+			<h3 class="card-header">Name (name): <?= $repo->name ?></h3>
+			<div class="card-block">
+				<p class="card-text"><strong>Description (description): </strong><?= $repo->description ?></p>
+			</div>
+			<ul class="list-group list-group-flush">
+				<li class="list-group-item"><strong>ID (repo_id): </strong><?= $repo->repo_id ?></li>
+				<li class="list-group-item"><strong>Created Date (created_date): </strong><?= $repo->created_date ?></li>
+				<li class="list-group-item"><strong>Last Push Date (last_push_date): </strong><?= $repo->last_push_date ?></li>
+				<li class="list-group-item"><strong>Number of Stars (stars): </strong><?= $repo->stars ?></li>
+			</ul>
+			<div class="card-block">
+				<span class="card-text"><strong>URL (url): </strong></span><a href="<?= $repo->url ?>" class="card-link"><?= $repo->url ?></a>
+			</div>
+		</div>
+	<?php endforeach; ?>
 </div>
 
 <!-- Bootstrap core JavaScript
